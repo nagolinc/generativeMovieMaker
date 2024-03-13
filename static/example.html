@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Editor Timeline</title>
+  <style>
+    .timeline,
+    .timeline-axis {
+      height: 50px;
+      background-color: #ddd;
+      position: relative;
+      margin: 20px;
+    }
+
+    .timeline {
+      cursor: pointer;
+    }
+
+    .form-container {
+      display: none;
+      margin-top: 20px;
+      border: 3px solid #f1f1f1;
+      padding: 10px;
+      background-color: white;
+    }
+
+    .element {
+      position: absolute;
+      height: 100%;
+      background-color: #79a7d3;
+      cursor: pointer;
+      border: 1px solid #ffffff;
+      /* Add this line */
+      box-sizing: border-box;
+    }
+
+    .time-marker {
+      position: absolute;
+      bottom: -20px;
+      width: 100%;
+      text-align: left;
+      font-size: 12px;
+    }
+
+    input[readonly] {
+      background-color: transparent;
+      border: none;
+      color: gray;
+      outline: none;
+    }
+
+    .chosenImage {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .resize-handle {
+      position: absolute;
+      right: 0;
+      top: 0; /* Add this line */
+      width: 10px;
+      height: 100%;
+      background-color: #f00;
+      cursor: e-resize;
+    }
+  </style>
+</head>
+
+<body>
+
+  ProjectId: <input type="text" id="projectId" value="Project 1">
+  <button id="save" onclick=doSave()>Save</button>
+  <button id="load" onclick=doLoad()>Load</button>
+
+  <br>
+
+
+
+  talkingHeadVideo:
+  <div id="talkingHeadVideo-timeline" class="timeline"></div>
+  SVD:
+  <div id="svd-timeline" class="timeline"></div>
+  AnimDiff
+  <div id="animDiff-timeline" class="timeline"></div>
+  Images:
+  <div id="image-timeline" class="timeline"></div>
+  Music:
+  <div id="music-timeline" class="timeline"></div>
+  Speech:
+  <div id="speech-timeline" class="timeline"></div>
+
+  <!-- types == ['talkingHeadVideo', 'svd', 'animDiff', 'image', 'music', 'speech'] -->
+
+
+  <div class="timeline-axis" id="timelineAxis">
+    <span class="time-marker">0:00</span>
+    <span class="time-marker" style="left: 50%;">1:00</span>
+    <span class="time-marker" style="left: 100%; transform: translateX(-100%);">2:00</span>
+  </div>
+
+  <div class="form-container" id="elementForm">
+    <div>
+      <label for="elementId">Element ID:</label>
+      <input type="text" id="elementId" name="elementId" readonly>
+    </div>
+    <div>
+      <label for="type">Type:</label>
+      <input type="text" id="elementType" name="elementType" readonly>
+    </div>
+    <div>
+      <label for="prompt">Prompt:</label>
+      <input type="text" id="prompt" name="prompt" required>
+    </div>
+    <div>
+      <label for="start">Start (s):</label>
+      <input type="number" id="start" name="start" required min="0" max="100" step="any">
+    </div>
+    <div>
+      <label for="duration">Duration (s):</label>
+      <input type="number" id="duration" name="duration" required min="0" step="any">
+    </div>
+    <!--<button type="button" id="addElementButton" onclick="addElementOrUpdate()">Update</button>-->
+    <button type="button" id="generate" onclick="generate()">Generate</button>
+    <button type="button" id="delete" onclick="deleteElement()">Delete</button>
+    <br><br>
+    <div id="variants"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
