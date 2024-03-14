@@ -259,7 +259,10 @@ async function generate() {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(elementData)
+    body: JSON.stringify({
+      elementData: elementData,
+      projectId: document.getElementById('projectId').value
+    })
   });
 
   if (!response.ok) {
@@ -300,7 +303,7 @@ function displayVariants() {
     variants.forEach(variant => {
       let gridItem;
 
-      if (elementType === 'music') {
+      if (elementType === 'music' || elementType === 'speech') {
         const audio = document.createElement('audio');
         audio.controls = true;
         audio.src = variant;
@@ -339,6 +342,44 @@ function displayVariants() {
         img.style.width = '100%';
         img.style.objectFit = 'cover';
         gridItem = img;
+      } else if (elementType === 'svd') {
+
+
+        console.log("showing video!" + variant);
+
+        const video = document.createElement('video');
+        video.controls = true;
+        video.src = variant;
+        video.style.width = '100%';
+        video.style.objectFit = 'cover';
+
+
+        // Create a button for selecting the variant
+        const selectButton = document.createElement('button');
+        selectButton.textContent = 'Select';
+        selectButton.style.width = '20%'; // Adjust as needed
+        // Add click event listener to the button
+        selectButton.addEventListener('click', (event) => {
+          elementsData[elementId].chosen = variant;
+          displayVariants(); // Refresh the display
+          addChosenImage(elementId);
+          event.stopPropagation(); // Prevent the event from bubbling up to the gridItem
+
+          //save
+          doSave();
+
+        });
+
+        // Wrap the audio element and the button in a div
+        const wrapper = document.createElement('div');
+        wrapper.appendChild(video);
+        //add br
+        wrapper.appendChild(document.createElement('br'));
+        wrapper.appendChild(selectButton);
+
+
+        gridItem = wrapper;
+
       }
 
       // Add border if this variant is chosen
@@ -376,7 +417,7 @@ function addChosenImage(elementId) {
     let nodesToRemove = [];
     for (let child of element.childNodes) {
       //don't remove the resize handle
-      if (child.nodeType === Node.ELEMENT_NODE && !child.classList.contains('resize-handle') ){
+      if (child.nodeType === Node.ELEMENT_NODE && !child.classList.contains('resize-handle')) {
         nodesToRemove.push(child);
       }
     }
@@ -385,7 +426,7 @@ function addChosenImage(elementId) {
       element.removeChild(node);
     }
 
-    if (elementType === 'music') {
+    if (elementType === 'music' || elementType === 'speech') {
 
 
       const audio = document.createElement('audio');
@@ -405,19 +446,46 @@ function addChosenImage(elementId) {
       //add a class to img so we can do some styling
       img.classList.add('chosenImage');
 
+    } else if (elementType === 'svd') {
+      const video = document.createElement('video');
+      video.controls = false;
+      video.src = chosen;
+      video.style.width = '100%';
+      video.style.height = '100%';
+      video.style.objectFit = 'contain'; // Change 'cover' to 'contain'
+
+      // Add click event listener to the video
+      video.addEventListener('click', () => {
+        if (video.paused) {
+          video.play();
+        } else {
+          video.pause();
+        }
+      });
+
+      element.appendChild(video);
     }
+
   }
 }
 
 
 async function save(key) {
-  const data = JSON.stringify(elementsData);
+  const data = {
+    project_name: document.getElementById('projectId').value,
+    elements: elementsData,
+    duration: timelineDuration,
+    outputMovie: document.getElementById('outputVideo').src
+  };
+
+
+
   const response = await fetch('/save', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ key, data })
+    body: JSON.stringify({ key, data: JSON.stringify(data) })
   });
 
   if (!response.ok) {
@@ -434,8 +502,15 @@ async function load(key) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
+
+
   const result = await response.json();
   const data = JSON.parse(result.data);
+
+  //set final video
+  document.getElementById('outputVideo').src = data.outputMovie;
+  loadedElementData = data['elements']
+
 
   for (const type of types) {
     // Clear timeline and elementsData
@@ -450,8 +525,8 @@ async function load(key) {
   document.getElementById('elementForm').style.display = 'none';
 
   // Assuming timeline is an array and addElement is a function that adds an element to the timeline
-  for (const elementId in data) {
-    addElementWithData(data[elementId]);
+  for (const elementId in loadedElementData) {
+    addElementWithData(loadedElementData[elementId]);
   }
 }
 
@@ -472,6 +547,37 @@ function deleteElement() {
   element.remove();
   delete elementsData[elementId];
 }
+
+async function createMovie() {
+  const projectId = document.getElementById('projectId').value;
+  const response = await fetch('/generateVideo', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ projectId }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const outputVideo = document.getElementById('outputVideo'); // replace with your actual video element id
+  outputVideo.src = data.url;
+}
+
+const outputVideo = document.getElementById('outputVideo');
+const currentTimeLine = document.getElementById('current-time-line');
+
+const timelineAxis = document.getElementById('timelineAxis');
+
+outputVideo.addEventListener('timeupdate', () => {
+  const progress = outputVideo.currentTime / timelineDuration;
+  const timelineStart = timelineAxis.offsetLeft;
+  const timelineWidth = timelineAxis.offsetWidth;
+  currentTimeLine.style.left = `${timelineStart + progress * timelineWidth}px`;
+});
 
 
 

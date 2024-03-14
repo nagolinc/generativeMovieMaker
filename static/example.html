@@ -60,11 +60,30 @@
     .resize-handle {
       position: absolute;
       right: 0;
-      top: 0; /* Add this line */
+      top: 0;
+      /* Add this line */
       width: 10px;
       height: 100%;
       background-color: #f00;
       cursor: e-resize;
+    }
+
+    .bigButton {
+      padding: 10px;
+      font-size: 20px;
+      margin-top: 20px;
+    }
+
+    #bigTimelineDiv {
+      position: relative;
+    }
+
+    #current-time-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background-color: red;
     }
   </style>
 </head>
@@ -78,28 +97,37 @@
   <br>
 
 
+  <div id="bigTimelineDiv">
 
-  talkingHeadVideo:
-  <div id="talkingHeadVideo-timeline" class="timeline"></div>
-  SVD:
-  <div id="svd-timeline" class="timeline"></div>
-  AnimDiff
-  <div id="animDiff-timeline" class="timeline"></div>
-  Images:
-  <div id="image-timeline" class="timeline"></div>
-  Music:
-  <div id="music-timeline" class="timeline"></div>
-  Speech:
-  <div id="speech-timeline" class="timeline"></div>
-
-  <!-- types == ['talkingHeadVideo', 'svd', 'animDiff', 'image', 'music', 'speech'] -->
+    <div id="current-time-line"></div>
 
 
-  <div class="timeline-axis" id="timelineAxis">
-    <span class="time-marker">0:00</span>
-    <span class="time-marker" style="left: 50%;">1:00</span>
-    <span class="time-marker" style="left: 100%; transform: translateX(-100%);">2:00</span>
+    talkingHeadVideo:
+    <div id="talkingHeadVideo-timeline" class="timeline"></div>
+    SVD:
+    <div id="svd-timeline" class="timeline"></div>
+    AnimDiff
+    <div id="animDiff-timeline" class="timeline"></div>
+    Images:
+    <div id="image-timeline" class="timeline"></div>
+    Music:
+    <div id="music-timeline" class="timeline"></div>
+    Speech:
+    <div id="speech-timeline" class="timeline"></div>
+
+    <!-- types == ['talkingHeadVideo', 'svd', 'animDiff', 'image', 'music', 'speech'] -->
+
+
+    <div class="timeline-axis" id="timelineAxis">
+      <span class="time-marker">0:00</span>
+      <span class="time-marker" style="left: 50%;">1:00</span>
+      <span class="time-marker" style="left: 100%; transform: translateX(-100%);">2:00</span>
+    </div>
+
+
   </div>
+
+
 
   <div class="form-container" id="elementForm">
     <div>
@@ -127,6 +155,11 @@
     <button type="button" id="delete" onclick="deleteElement()">Delete</button>
     <br><br>
     <div id="variants"></div>
+  </div>
+  <div id="movie">
+    <button id="createMovie" class="bigButton" onclick="createMovie()">Create Movie</button>
+    <br>
+    <video id="outputVideo" controls></video>
   </div>
 
   <script src="app.js"></script>

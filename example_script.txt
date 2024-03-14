@@ -1,0 +1,8 @@
+Image: a castle
+Dialogue: Long long ago
+Image: a peaceful forest
+Dialogue: In a land far far away
+Image: a wizard
+Dialogue: There was a dragon
+Image: a dragon
+Sound Effect: Dragon roar
