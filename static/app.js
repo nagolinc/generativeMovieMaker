@@ -38,6 +38,10 @@ function showForm(thisType, action, elementId, start, duration) {
     document.getElementById('start').value = elementData.start;
     document.getElementById('duration').value = elementData.duration;
     document.getElementById('elementId').value = elementId;
+
+    //set end = start+ duraation
+    document.getElementById('end').value = elementData.start + elementData.duration;
+
   } else {
     // Reset the form for a new element
     document.getElementById('prompt').value = 'a cat in a hat';
@@ -285,6 +289,33 @@ async function generate() {
 
 }
 
+
+function getAudioDuration(src) {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio();
+    audio.onloadedmetadata = function() {
+      resolve(audio.duration);
+    };
+    audio.onerror = function() {
+      reject('Error loading audio file');
+    };
+    audio.src = src;
+  });
+}
+
+function getVideoDuration(src) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.onloadedmetadata = function() {
+      resolve(video.duration);
+    };
+    video.onerror = function() {
+      reject('Error loading video file');
+    };
+    video.src = src;
+  });
+}
+
 function displayVariants() {
   const elementId = document.getElementById('elementId').value;
   const variantsContainer = document.getElementById('variants');
@@ -317,8 +348,26 @@ function displayVariants() {
         selectButton.style.width = '20%'; // Adjust as needed
 
         // Add click event listener to the button
-        selectButton.addEventListener('click', (event) => {
+        selectButton.addEventListener('click', async (event) => {
           elementsData[elementId].chosen = variant;
+
+          if(elementType ==='speech'){
+            try {
+              // Assuming variant is the path to the audio file
+              const durationSeconds = await getAudioDuration(variant);
+              elementsData[elementId].duration = durationSeconds;
+          
+              // Calculate durationPercent based on the new duration
+              const durationPercent = durationSeconds / timelineDuration * 100;
+          
+              // Get the element and adjust its width
+              const element = document.getElementById(elementId);
+              element.style.width = `${durationPercent}%`;
+            } catch (error) {
+              console.error(error);
+            }
+          }
+
           displayVariants(); // Refresh the display
           addChosenImage(elementId);
           event.stopPropagation(); // Prevent the event from bubbling up to the gridItem
@@ -342,7 +391,7 @@ function displayVariants() {
         img.style.width = '100%';
         img.style.objectFit = 'cover';
         gridItem = img;
-      } else if (elementType === 'svd') {
+      } else if (elementType === 'svd' || elementType === 'talkingHeadVideo' || elementType === 'animDiff') {
 
 
         console.log("showing video!" + variant);
@@ -361,6 +410,28 @@ function displayVariants() {
         // Add click event listener to the button
         selectButton.addEventListener('click', (event) => {
           elementsData[elementId].chosen = variant;
+
+
+          //if talkingHeadVideo, get duration (we'll loop svd and animDiff)
+          if (elementType === 'talkingHeadVideo') {
+            getVideoDuration(variant).then(durationSeconds => {
+              elementsData[elementId].duration = durationSeconds;
+
+              // Calculate durationPercent based on the new duration
+              const durationPercent = durationSeconds / timelineDuration * 100;
+
+              // Get the element and adjust its width
+              const element = document.getElementById(elementId);
+              element.style.width = `${durationPercent}%`;
+
+              //save
+              doSave();
+            }).catch(error => {
+              console.error(error);
+            });
+          }
+
+
           displayVariants(); // Refresh the display
           addChosenImage(elementId);
           event.stopPropagation(); // Prevent the event from bubbling up to the gridItem
@@ -413,18 +484,8 @@ function addChosenImage(elementId) {
   if (chosen) {
     const element = document.getElementById(elementId);
 
-    //clear children
-    let nodesToRemove = [];
-    for (let child of element.childNodes) {
-      //don't remove the resize handle
-      if (child.nodeType === Node.ELEMENT_NODE && !child.classList.contains('resize-handle')) {
-        nodesToRemove.push(child);
-      }
-    }
-
-    for (let node of nodesToRemove) {
-      element.removeChild(node);
-    }
+    //clear inner text
+    element.innerText = '';
 
     if (elementType === 'music' || elementType === 'speech') {
 
@@ -446,7 +507,7 @@ function addChosenImage(elementId) {
       //add a class to img so we can do some styling
       img.classList.add('chosenImage');
 
-    } else if (elementType === 'svd') {
+    } else if (elementType === 'svd' || elementType === 'talkingHeadVideo' || elementType === 'animDiff') {
       const video = document.createElement('video');
       video.controls = false;
       video.src = chosen;
@@ -465,6 +526,11 @@ function addChosenImage(elementId) {
 
       element.appendChild(video);
     }
+
+    //re add resize handle
+    const resizeHandle = document.createElement('div');
+    resizeHandle.classList.add('resize-handle');
+    element.appendChild(resizeHandle);
 
   }
 }

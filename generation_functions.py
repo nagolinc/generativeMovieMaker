@@ -63,6 +63,13 @@ from TTS.api import TTS
 from TTS.utils.manage import ModelManager
 
 
+from pipeline import StableVideoDiffusionPipeline
+from lcm_scheduler import AnimateLCMSVDStochasticIterativeScheduler
+from safetensors import safe_open
+
+
+
+
 # from load_llama_model import getllama, Chatbot
 
 
@@ -699,11 +706,48 @@ def setup(
     if need_svd:
         print("LOADING SVD MODEL")
         global svd_model
+        '''
         svd_model = StableVideoDiffusionPipeline.from_pretrained(
             "stabilityai/stable-video-diffusion-img2vid-xt-1-1",
             torch_dtype=torch.float16,
             variant="fp16",
+        )'''
+        
+        def model_select(selected_file):
+            print("load model weights", selected_file)
+            svd_model.unet.cpu()
+            file_path = os.path.join("D:/img/movieMaker/safetensors", selected_file)
+            #file_path="D:\img\movieMaker\safetensors\AnimateLCM-SVD-xt-1.1.safetensors"
+            state_dict = {}
+            with safe_open(file_path, framework="pt", device="cpu") as f:
+                for key in f.keys():
+                    state_dict[key] = f.get_tensor(key)
+            missing, unexpected = svd_model.unet.load_state_dict(state_dict, strict=True)
+            svd_model.unet.cuda()
+            del state_dict
+            return
+
+ 
+
+        noise_scheduler = AnimateLCMSVDStochasticIterativeScheduler(
+            num_train_timesteps=40,
+            sigma_min=0.002,
+            sigma_max=700.0,
+            sigma_data=1.0,
+            s_noise=1.0,
+            rho=7,
+            clip_denoised=False,
         )
+        svd_model = StableVideoDiffusionPipeline.from_pretrained(
+            "stabilityai/stable-video-diffusion-img2vid-xt",
+            scheduler=noise_scheduler,
+            torch_dtype=torch.float16,
+            variant="fp16",
+        )
+        svd_model.to("cuda")
+        svd_model.enable_model_cpu_offload()  # for smaller cost
+        model_select("AnimateLCM-SVD-xt-1.1.safetensors")
+            
         if do_save_memory:
             svd_model = svd_model.to("cpu")
         else:
@@ -719,6 +763,9 @@ def generate_video_svd(
     decoding_t=2,
     noise_aug_strength=0.1,
     num_frames=25,
+    num_inference_steps=4,
+    min_guidance_scale=1,
+    max_guidance_scale=1.2,
 ):
     global svd_model
     if do_save_memory:
@@ -735,7 +782,7 @@ def generate_video_svd(
         )
         
         
-
+        '''
         frames = svd_model(
             image,
             width=image.width,
@@ -746,7 +793,18 @@ def generate_video_svd(
             noise_aug_strength=noise_aug_strength,
             num_frames=num_frames,
         ).frames[0]
-
+        '''
+        frames = svd_model(
+            image,
+            decode_chunk_size=decoding_t,
+            generator=generator,
+            motion_bucket_id=motion_bucket_id,
+            height=image.height,
+            width=image.width,
+            num_inference_steps=num_inference_steps,
+            min_guidance_scale=min_guidance_scale,
+            max_guidance_scale=max_guidance_scale,
+        ).frames[0]
 
         temp_path=save_path + "temp.mp4"
         video_path = save_path + filename

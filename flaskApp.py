@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 import generation_functions
 import os
 
+from sadWrapper import sadTalker
+
 import dataset
 
 from threading import Lock
@@ -36,9 +38,10 @@ def getElement(project_id, time, type):
 from moviepy.editor import ColorClip, AudioClip, ImageClip, VideoFileClip, CompositeVideoClip, CompositeAudioClip,concatenate_videoclips,AudioFileClip,concatenate_audioclips
 
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
 def generateVideo(project_id, width=512, height=512):
-    
-    
     
     project_json_string = db["savedata"].find_one(key=project_id)["data"]
     project = json.loads(project_json_string)
@@ -64,11 +67,15 @@ def generateVideo(project_id, width=512, height=512):
                 img_clip = ImageClip("."+element['chosen'], duration=element['duration'])
                 img_clip = img_clip.set_start(start).set_end(end)
                 video = CompositeVideoClip([video, img_clip])
-            elif element['elementType'] == 'svd':
+            elif element['elementType'] in ['svd','talkingHeadVideo']:
                 video_clip = VideoFileClip("."+element['chosen'])
                 loops = int(element['duration'] // video_clip.duration) + 1
                 video_clips = [video_clip for _ in range(loops)]
                 video_clip = concatenate_videoclips(video_clips).subclip(0, element['duration'])
+                
+                # Resize the video_clip to match the size of the video
+                video_clip = video_clip.resize(video.size)
+                
                 video_clip = video_clip.set_start(start).set_end(end)
                 video = CompositeVideoClip([video, video_clip])
             elif element['elementType'] in ['music', 'sound']:
@@ -93,7 +100,19 @@ def generateVideo(project_id, width=512, height=512):
     #replace all characters that aren't a-z or 0-9 with _
     clean_project_id = "".join([c if c.isalnum() else "_" for c in project_id])
     filename = f"static/samples/{date}{clean_project_id}.mp4"
-    video.write_videofile(filename)
+    #video.write_videofile(filename)
+    #video.write_videofile(filename, codec='h264_nvenc', ffmpeg_params=['-preset', 'fast'])
+    print("params",['-preset', 'fast', '-v', 'verbose'])
+    #video.write_videofile(filename, codec='h264_nvenc', ffmpeg_params=['-preset', 'fast', '-v', 'verbose'])
+    
+    video.write_videofile(
+        filename,
+        threads=5,
+        bitrate="2000k",
+        audio_codec="aac",
+        codec="h264_nvenc",
+    )
+
     
     return filename
     
@@ -106,7 +125,21 @@ def generate_video():
     url = "/" + url
     return jsonify({"url": url})
     
+import shutil
 
+def generateSadTalkerVideo(audio,image):
+    result = sadTalker(audio,image)
+    #copy result into static/samples/
+    shutil.copy(result, "static/samples/")
+    #return path to result file in static/samples/
+    sample_path = "static/samples/" + os.path.basename(result)
+    return sample_path
+
+@app.route("/getVoices", methods=["GET"])
+def get_voices():
+    voices_dir = "static/voices"
+    voices = [f for f in os.listdir(voices_dir) if os.path.isfile(os.path.join(voices_dir, f))]
+    return jsonify({"voices": voices})
 
 @app.route("/generate", methods=["POST"])
 def generate():
@@ -156,6 +189,43 @@ def generate():
             #prepend / to url
             svd_url = "/" + svd_url
         return jsonify({"url": svd_url})
+    elif elementType=="talkingHeadVideo":
+        with generate_image_lock:
+            time = elementData["start"]
+            audioElement=getElement(projectId, time, "speech")
+            if not audioElement:
+                return jsonify({"error": "No sound found for this time"}), 400
+            audioUrl = "."+audioElement['chosen']
+            if audioUrl == None:
+                return jsonify({"error": "No sound found for this time"}), 400
+            #check if file exists and is an audio file
+            if os.path.isfile(audioUrl) and audioUrl.endswith(('.mp3', '.wav')):
+                pass
+            else:
+                return jsonify({"error": "Invalid audio file"}), 400
+            #load audio
+            audio = AudioFileClip(audioUrl)
+            #get image
+            imageElement=getElement(projectId, time, "image")
+            if not imageElement:
+                return jsonify({"error": "No image found for this time"}), 400
+            imageUrl = "."+imageElement['chosen']
+            if imageUrl == None:
+                return jsonify({"error": "No image found for this time"}), 400
+            #check if file exists and is an image
+            if os.path.isfile(imageUrl) and imageUrl.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                pass
+            else:
+                return jsonify({"error": "Invalid image file"}), 400
+            
+            #for sadtalker we need the full path
+            full_image_path = os.path.abspath(imageUrl)
+            full_audio_path = os.path.abspath(audioUrl)
+            #generate movie
+            talking_head_video_url = generateSadTalkerVideo(full_audio_path, full_image_path)
+            #prepend / to url
+            talking_head_video_url = "/" + talking_head_video_url
+        return jsonify({"url": talking_head_video_url})
     else:
         return jsonify({"error": "Invalid type"}), 400
 

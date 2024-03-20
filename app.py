@@ -27,6 +27,13 @@ def generateMusic(prompt):
 def generateSoundEffect(effect):
     return generation_functions.generate_sound(effect)
 
+
+def generateVideo(images,duration):
+    return generation_functions.generate_video(images,duration)
+
+def generateSpeakingVideo(dialogue,image):
+    return generation_functions.generate_speaking_video(dialogue,image)
+
 # Ensure the 'timeline' key exists in the session state
 def ensure_timeline_initialized():
     if 'timeline' not in st.session_state:
