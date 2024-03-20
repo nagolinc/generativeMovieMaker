@@ -38,10 +38,142 @@ def getElement(project_id, time, type):
 from moviepy.editor import ColorClip, AudioClip, ImageClip, VideoFileClip, CompositeVideoClip, CompositeAudioClip,concatenate_videoclips,AudioFileClip,concatenate_audioclips
 
 
-import logging
-logging.basicConfig(level=logging.DEBUG)
+import cv2
+import numpy as np
+import json
+from decord import VideoReader, cpu
+from moviepy.editor import AudioFileClip, CompositeAudioClip, concatenate_audioclips
+import datetime
+import subprocess
 
 def generateVideo(project_id, width=512, height=512):
+    project_json_string = db["savedata"].find_one(key=project_id)["data"]
+    project = json.loads(project_json_string)
+    elements = sorted(project['elements'].values(), key=lambda e: e['start'])
+    
+    duration = 0
+    
+    for element in elements:
+        element_duration = element['start'] + element['duration']
+        if element_duration > duration:
+            duration = element_duration
+    
+    # Initialize a blank video frame array
+    video_frames = np.zeros((int(duration * 30), height, width, 3), dtype=np.uint8)  # Assuming 30 fps
+    
+    audio = AudioClip(lambda t: 0, duration=duration)
+    audio.fps = 44100
+
+    for element in elements:
+        start = element['start']
+        end = start + element['duration']
+        if 'chosen' in element and element['chosen']:
+            start_frame = int(element['start'] * 30)  # Assuming 30 fps
+            end_frame = start_frame + int(element['duration'] * 30)
+            
+            if element['elementType'] == 'image':
+                img = cv2.imread("." + element['chosen'])
+                img_resized = cv2.resize(img, (width, height))
+                for f in range(start_frame, min(end_frame, len(video_frames))):
+                    video_frames[f] = img_resized
+            
+            
+            #videos that lop
+            elif element['elementType'] in ['svd']:
+                vr = VideoReader("." + element['chosen'], ctx=cpu(0))
+                vr_length = len(vr)  # Total number of frames in the video
+                for f in range(start_frame, min(end_frame, len(video_frames))):
+                    # Use modulo to loop over vr frames if f exceeds vr_length
+                    frame_index = (f - start_frame) % vr_length
+                    frame = vr[frame_index].asnumpy()
+                    # Convert frame from RGB to BGR for OpenCV compatibility
+                    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                    frame_resized = cv2.resize(frame, (width, height))
+                    video_frames[f] = frame_resized
+
+                        
+            #videos that don't loop
+            elif element['elementType'] in ['talkingHeadVideo']:
+                vr = VideoReader("." + element['chosen'], ctx=cpu(0))
+                for i, f in enumerate(range(start_frame, min(end_frame, len(video_frames)))):
+                    if i < len(vr):
+                        frame = vr[i].asnumpy()
+                        # Convert frame from RGB to BGR
+                        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                        frame_resized = cv2.resize(frame, (width, height))
+                        video_frames[f] = frame_resized
+
+            
+            elif element['elementType'] in ['music', 'sound']:
+                audio_clip = AudioFileClip("."+element['chosen'])
+                loops = int(element['duration'] // audio_clip.duration) + 1
+                audio_clips = [audio_clip for _ in range(loops)]
+                audio_clip = concatenate_audioclips(audio_clips).subclip(0, element['duration'])
+                audio_clip = audio_clip.set_start(start).set_end(end)
+                audio = CompositeAudioClip([audio, audio_clip])
+            elif element['elementType'] == 'speech':
+                
+                audio_clip = AudioFileClip("."+element['chosen'])
+                #make sure end isn't past end of audio
+                if end-start > audio_clip.duration:
+                    end = start + audio_clip.duration
+                audio_clip = audio_clip.set_start(start).set_end(end)
+                audio = CompositeAudioClip([audio, audio_clip])
+
+
+    # Save video_frames to a video file using OpenCV
+    date = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    clean_project_id = "".join([c if c.isalnum() else "_" for c in project_id])
+    video_filename = f"static/samples/{date}-{clean_project_id}_video.mp4"
+    out = cv2.VideoWriter(video_filename, cv2.VideoWriter_fourcc(*'mp4v'), 30, (width, height))
+    for frame in video_frames:
+        out.write(frame)
+    out.release()
+    
+    # Save audio to file
+    #audio_filename = f"static/samples/{date}-{clean_project_id}_audio.mp3"
+    
+    
+    audio.fps = 44100
+    #audio.write_audiofile(audio_filename, codec='aac')
+    
+    audio_filename = f"static/samples/{date}-{clean_project_id}_audio.m4a"
+    audio.write_audiofile(audio_filename, codec='aac')
+
+    # Final video filename
+    final_filename = f"static/samples/{date}-{clean_project_id}.mp4"
+
+    # Use ffmpeg to combine video and audio
+    # Use ffmpeg to re-encode the video for web compatibility
+    cmd = [
+        'ffmpeg',
+        '-i', video_filename,  # Input video file
+        '-i', audio_filename,  # Input audio file
+        '-c:v', 'libx264',  # Video codec: H.264
+        '-preset', 'medium',  # Preset for encoding speed vs compression ratio
+        '-tune', 'film',  # Tune the encoder for the type of content
+        '-crf', '23',  # Constant Rate Factor (quality level, lower is better quality)
+        '-profile:v', 'main',  # H.264 profile level
+        '-level', '4.0',  # H.264 level
+        '-movflags', '+faststart',  # Optimize MP4 for fast web start
+        '-c:a', 'aac',  # Audio codec: AAC
+        '-b:a', '128k',  # Audio bitrate
+        '-strict', '-2',  # Allow experimental codecs, if necessary
+        '-y',  # Overwrite output files without asking
+        final_filename  # Output file
+    ]
+    subprocess.run(cmd)
+
+
+    # Optionally, delete the temporary video and audio files
+    # os.remove(video_filename)
+    # os.remove(audio_filename)
+
+    return final_filename
+
+
+
+def generateVideo1(project_id, width=512, height=512):
     
     project_json_string = db["savedata"].find_one(key=project_id)["data"]
     project = json.loads(project_json_string)
@@ -112,7 +244,6 @@ def generateVideo(project_id, width=512, height=512):
         audio_codec="aac",
         codec="h264_nvenc",
     )
-
     
     return filename
     
