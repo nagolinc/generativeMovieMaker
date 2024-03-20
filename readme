@@ -12,3 +12,16 @@ transformers
 magnet https://github.com/facebookresearch/audiocraft/blob/main/docs/MAGNET.md
 
 and probably a bunch of other stuff.  More complete installation instructions hopefully forthcoming
+
+
+todo:
+*better installation instructions
+*google colab notebook
+*make sadtalker face where I want it [done]
+*pan/zoom timeline
+*uploads
+*plugin system
+**ip adapter face
+*copy node button [done]
+*some nice ux for inserting/deleting time
+*toggle timelines on and off with a checkbox at the top
