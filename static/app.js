@@ -42,6 +42,9 @@ function showForm(thisType, action, elementId, start, duration) {
     document.getElementById('end').value = elementData.start + elementData.duration;
 
     //custom fields
+    //clear custom fields
+    const customFields = document.getElementById('customFields');
+    customFields.innerHTML = '';
     if (thisType === 'speech') {
       addVoicesDropdown(elementId);
     }

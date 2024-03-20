@@ -12,6 +12,9 @@ from PIL import Image
 
 import numpy as np
 
+import shutil
+
+
 generate_image_lock = Lock()
 
 # Database configuration
@@ -256,14 +259,92 @@ def generate_video():
     url = "/" + url
     return jsonify({"url": url})
     
+
+
+
+import cv2
+import numpy as np
 import shutil
+import os
+import subprocess
 
 def generateSadTalkerVideo(audio,image):
-    result = sadTalker(audio,image)
+    crop_info, result = sadTalker(audio,image)
+    
+    print("crop info",crop_info)
+    
+    #x0,y0,x1,y1 = crop_info[1]
+    
+    # Extracting the bounding box of the cropped region in the original image
+    x0_cropped, y0_cropped, x1_cropped, y1_cropped = crop_info[1]
+
+    # Extracting the smaller box coordinates within the cropped region
+    left_small, top_small, right_small, bottom_small = crop_info[2]
+
+    # Calculating the coordinates of the smaller box in the original image's coordinate space
+    x0_small_original = x0_cropped + left_small
+    y0_small_original = y0_cropped + top_small
+    x1_small_original = x0_cropped + right_small
+    y1_small_original = y0_cropped + bottom_small
+    
+    x0=int(x0_small_original)
+    y0=int(y0_small_original)
+    x1=int(x1_small_original)
+    y1=int(y1_small_original)
+        
+    # Load the original image
+    original = cv2.imread(image)
+    
+    # Open the animated face video
+    animated_face = cv2.VideoCapture(result)
+
+    # Get the video's width, height, and frames per second (fps)
+    fps = animated_face.get(cv2.CAP_PROP_FPS)
+
+    # Calculate the number of frames in the animated face video
+    animated_face_length = int(animated_face.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    # Calculate the duration of the video in seconds
+    duration = animated_face_length / fps
+
+    # Create a VideoWriter object to write the output video
+    output = cv2.VideoWriter('temp_output.mp4', cv2.VideoWriter_fourcc(*'mp4v'), fps, (original.shape[1], original.shape[0]))
+
+    frame_number = 0
+    while frame_number < duration * fps:
+        ret_anim, frame_anim = animated_face.read()
+
+        if not ret_anim:
+            break
+
+        # Use modulo to loop over animated face frames if frame_number exceeds animated_face_length
+        frame_index = frame_number % animated_face_length
+
+        # Resize the animated face to fit the original face's location
+        frame_anim_resized = cv2.resize(frame_anim, (x1-x0, y1-y0))
+
+        # Overlay the animated face onto the original image
+        original[y0:y1, x0:x1] = frame_anim_resized
+
+        # Write the frame to the output video
+        output.write(original)
+
+        frame_number += 1
+
+    # Release the VideoCapture and VideoWriter objects
+    animated_face.release()
+    output.release()
+
+    # Re-encode the video using ffmpeg to ensure compatibility with web browsers
+    subprocess.run(['ffmpeg', '-i', 'temp_output.mp4', '-i', result, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0', '-y', 'output.mp4'])
+
+    # Remove the temporary output file
+    os.remove('temp_output.mp4')
+
     #copy result into static/samples/
-    shutil.copy(result, "static/samples/")
-    #return path to result file in static/samples/
     sample_path = "static/samples/" + os.path.basename(result)
+    shutil.copy('output.mp4', sample_path)
+    #return path to result file in static/samples/
     return sample_path
 
 @app.route("/getVoices", methods=["GET"])
