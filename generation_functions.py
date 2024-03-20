@@ -826,7 +826,7 @@ def generate_video_svd(
         return video_path
 
 
-def generate_tts(text, speaker="static/femalevoice3.wav", savePath="static/samples/"):
+def generate_tts(text, speaker="static/voices/femalevoice3.wav", savePath="static/samples/"):
     global tts
 
     # filename should look like {datetime}-{text}.wav
@@ -843,6 +843,8 @@ def generate_tts(text, speaker="static/femalevoice3.wav", savePath="static/sampl
     # move to gpu
     if do_save_memory:
         tts = tts.to("cuda")
+        
+    print('generating with voice from',speaker_wav)
 
     tts.tts_to_file(
         text=prompt,

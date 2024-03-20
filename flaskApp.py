@@ -294,8 +294,13 @@ def generate():
         return jsonify({"url": music_url})
     #tts
     elif elementType == "speech":
+        
+        #get elementData[voice] if present
+        voice = elementData.get("voice")
+        
+        
         with generate_image_lock:
-            tts_url = generation_functions.generate_tts(prompt)
+            tts_url = generation_functions.generate_tts(prompt,speaker="static/voices/"+voice)
             #add / at beginning of url
             tts_url = "/" + tts_url
         return jsonify({"url": tts_url})

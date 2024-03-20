@@ -22,7 +22,6 @@ for (let type of types) {
       showForm(thisType, 'Add', null, start, duration);
     }
   });
-
 }
 
 function showForm(thisType, action, elementId, start, duration) {
@@ -41,6 +40,12 @@ function showForm(thisType, action, elementId, start, duration) {
 
     //set end = start+ duraation
     document.getElementById('end').value = elementData.start + elementData.duration;
+
+    //custom fields
+    if (thisType === 'speech') {
+      addVoicesDropdown(elementId);
+    }
+
 
   } else {
     // Reset the form for a new element
@@ -61,6 +66,47 @@ function showForm(thisType, action, elementId, start, duration) {
   //document.getElementById('addElementButton').textContent = action;
 
   displayVariants()
+}
+
+
+function addVoicesDropdown(elementId) {
+    fetch('/getVoices')
+        .then(response => response.json())
+        .then(data => {
+            const voices = data.voices;
+
+            // Create the dropdown
+            const select = document.createElement('select');
+            select.id = 'voicesDropdown';
+
+            // Populate the dropdown with the voices
+            voices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.value = voice;
+                option.text = voice;
+                select.appendChild(option);
+            });
+
+            // Add the dropdown to the form
+            const customFields = document.getElementById('customFields');
+            customFields.appendChild(select);
+
+            // If an elementId was provided, load the selected voice from elementData
+            if (elementId !== undefined) {
+                const elementData = elementsData[elementId];
+                if (elementData.voice) {
+                    select.value = elementData.voice;
+                }
+            }
+
+            // Add an event listener to the dropdown that updates elementData.voice
+            // whenever the selected voice changes
+            select.addEventListener('change', (event) => {
+                const selectedVoice = event.target.value;
+                const elementData = elementsData[elementId];
+                elementData.voice = selectedVoice;
+            });
+        });
 }
 
 
