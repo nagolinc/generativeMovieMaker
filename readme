@@ -1,0 +1,14 @@
+generative video generator
+
+https://twitter.com/andrewb10687674/status/1770566521690992911
+
+you will need (that I know of)
+
+sadtalker (my fork) installed somewhere that's in your pythonpath
+https://github.com/nagolinc/SadTalker
+pytorch
+diffusers
+transformers
+magnet https://github.com/facebookresearch/audiocraft/blob/main/docs/MAGNET.md
+
+and probably a bunch of other stuff.  More complete installation instructions hopefully forthcoming
