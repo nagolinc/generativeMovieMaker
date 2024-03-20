@@ -63,6 +63,16 @@ function showForm(thisType, action, elementId, start, duration) {
     document.getElementById('start').value = elementData.start;
     document.getElementById('duration').value = elementData.duration;
     document.getElementById('elementId').value = elementId;
+
+
+    //custom fields
+    //clear custom fields
+    const customFields = document.getElementById('customFields');
+    customFields.innerHTML = '';
+    if (thisType === 'speech') {
+      addVoicesDropdown(elementId);
+    }
+
   }
 
   // Set the button text to "Add" or "Update"
@@ -73,49 +83,85 @@ function showForm(thisType, action, elementId, start, duration) {
 
 
 function addVoicesDropdown(elementId) {
-    fetch('/getVoices')
-        .then(response => response.json())
-        .then(data => {
-            const voices = data.voices;
+  fetch('/getVoices')
+    .then(response => response.json())
+    .then(data => {
+      const voices = data.voices;
 
-            // Create the dropdown
-            const select = document.createElement('select');
-            select.id = 'voicesDropdown';
+      // Create the dropdown
+      const select = document.createElement('select');
+      select.id = 'voicesDropdown';
 
-            // Populate the dropdown with the voices
-            voices.forEach((voice, index) => {
-                const option = document.createElement('option');
-                option.value = voice;
-                option.text = voice;
-                select.appendChild(option);
-            });
+      // Populate the dropdown with the voices
+      voices.forEach((voice, index) => {
+        const option = document.createElement('option');
+        option.value = voice;
+        option.text = voice;
+        select.appendChild(option);
+      });
 
-            // Add the dropdown to the form
-            const customFields = document.getElementById('customFields');
-            customFields.appendChild(select);
+      // Add the dropdown to the form
+      const customFields = document.getElementById('customFields');
+      customFields.appendChild(select);
 
-            // If an elementId was provided, load the selected voice from elementData
-            if (elementId !== undefined) {
-                const elementData = elementsData[elementId];
-                if (elementData.voice) {
-                    select.value = elementData.voice;
-                }
-            }
+      // If an elementId was provided, load the selected voice from elementData
+      if (elementId !== undefined) {
+        const elementData = elementsData[elementId];
+        if (elementData.voice) {
+          select.value = elementData.voice;
+        }else{
+          //set voice to first option
+          select.value = voices[0];
+          elementData.voice = voices[0];
+        }
+      }
 
-            // Add an event listener to the dropdown that updates elementData.voice
-            // whenever the selected voice changes
-            select.addEventListener('change', (event) => {
-                const selectedVoice = event.target.value;
-                const elementData = elementsData[elementId];
-                elementData.voice = selectedVoice;
-            });
-        });
+      // Add an event listener to the dropdown that updates elementData.voice
+      // whenever the selected voice changes
+      select.addEventListener('change', (event) => {
+        const selectedVoice = event.target.value;
+        const elementData = elementsData[elementId];
+        elementData.voice = selectedVoice;
+      });
+    });
 }
 
 
 let dragElement = null;
 let dragStartX = 0;
 let timelineWidth = 0;
+
+
+function copyElement() {
+  let elementId = document.getElementById('elementId').value;
+  let elementData = elementsData[elementId];
+
+  // Copy the elementData
+  let newElementData = { ...elementData };
+
+  let thisType = elementsData[elementId].elementType;
+
+  // Generate a new elementId for the copied element
+  const newElementId = thisType + '-' + Math.random().toString(36).substring(7);
+
+  // Set the new elementId in the new data
+  newElementData.id = newElementId;
+
+  // Change the start in the new data to the end of the copied
+  newElementData.start = elementData.start + elementData.duration;
+
+  // Call addElementWithData
+  addElementWithData(newElementData); // Assuming this function exists and adds the element with the given data
+
+
+
+
+  // Call showForm with the correct info for the new element
+  showForm(thisType, 'Update', newElementId, newElementData.start, newElementData.duration);
+
+  //save
+  doSave();
+}
 
 
 function addElement(thisType) {
@@ -342,10 +388,10 @@ async function generate() {
 function getAudioDuration(src) {
   return new Promise((resolve, reject) => {
     const audio = new Audio();
-    audio.onloadedmetadata = function() {
+    audio.onloadedmetadata = function () {
       resolve(audio.duration);
     };
-    audio.onerror = function() {
+    audio.onerror = function () {
       reject('Error loading audio file');
     };
     audio.src = src;
@@ -355,10 +401,10 @@ function getAudioDuration(src) {
 function getVideoDuration(src) {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
-    video.onloadedmetadata = function() {
+    video.onloadedmetadata = function () {
       resolve(video.duration);
     };
-    video.onerror = function() {
+    video.onerror = function () {
       reject('Error loading video file');
     };
     video.src = src;
@@ -400,15 +446,15 @@ function displayVariants() {
         selectButton.addEventListener('click', async (event) => {
           elementsData[elementId].chosen = variant;
 
-          if(elementType ==='speech'){
+          if (elementType === 'speech') {
             try {
               // Assuming variant is the path to the audio file
               const durationSeconds = await getAudioDuration(variant);
               elementsData[elementId].duration = durationSeconds;
-          
+
               // Calculate durationPercent based on the new duration
               const durationPercent = durationSeconds / timelineDuration * 100;
-          
+
               // Get the element and adjust its width
               const element = document.getElementById(elementId);
               element.style.width = `${durationPercent}%`;
@@ -540,12 +586,40 @@ function addChosenImage(elementId) {
 
 
       const audio = document.createElement('audio');
-      audio.controls = true;
+
       audio.src = chosen;
       audio.style.width = '100%'; // Adjust as needed
       audio.style.objectFit = 'cover';
       audio.preload = 'metadata'; // Add this line
+
+      // Check the size of the element
+      if (element.offsetWidth >= 100) {
+        audio.controls = true;
+      } else {
+        // Add an event listener to play the audio when the element is clicked
+        element.addEventListener('click', function () {
+          if (audio.paused) {
+            audio.play();
+          } else {
+            audio.pause();
+          }
+        });
+        // Add a visual indicator
+        let audioIndicator = document.createElement('span');
+        audioIndicator.textContent = '🔊'; // You can replace this with any text or icon
+        audioIndicator.style.position = 'absolute';
+        audioIndicator.style.top = '50%';
+        audioIndicator.style.left = '50%';
+        audioIndicator.style.transform = 'translate(-50%, -50%)';
+        audioIndicator.style.fontSize = '20px'; // Adjust as needed
+        element.appendChild(audioIndicator);
+
+      }
+
       element.appendChild(audio);
+
+
+
 
     } else if (elementType === 'image') {
 
@@ -645,6 +719,8 @@ async function load(key) {
   }
 }
 
+
+
 function doSave() {
   const key = document.getElementById('projectId').value;
   save(key);
@@ -654,6 +730,26 @@ function doLoad() {
   const key = document.getElementById('projectId').value;
   load(key);
 }
+
+
+function doNew() {
+
+  //randomize project name
+  document.getElementById('projectId').value = "Project_" + Math.random().toString(36).substring(7);
+
+  for (const type of types) {
+    // Clear timeline and elementsData
+    const timeline = document.getElementById(type + '-timeline');
+    while (timeline.firstChild) {
+      timeline.removeChild(timeline.firstChild);
+    }
+  }
+  elementsData = {};
+
+  //hide form
+  document.getElementById('elementForm').style.display = 'none';
+}
+
 
 
 function deleteElement() {

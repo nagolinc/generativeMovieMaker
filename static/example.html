@@ -8,7 +8,7 @@
   <style>
     .timeline,
     .timeline-axis {
-      height: 50px;
+      height: 70px;
       background-color: #ddd;
       position: relative;
       margin: 20px;
@@ -93,6 +93,7 @@
   ProjectId: <input type="text" id="projectId" value="Project 1">
   <button id="save" onclick=doSave()>Save</button>
   <button id="load" onclick=doLoad()>Load</button>
+  <button id="new" onclick=doNew()>New</button>
 
   <br>
 
@@ -140,8 +141,7 @@
     </div>
     <div>
       <label for="prompt">Prompt:</label>
-      <input type="text" id="prompt" name="prompt" required>
-    </div>
+      <textarea id="prompt" name="prompt" required rows="4" cols="50"></textarea>  
     <div>
       <label for="start">Start (s):</label>
       <input type="number" id="start" name="start" required min="0" max="100" step="any">
@@ -158,6 +158,7 @@
     <!--<button type="button" id="addElementButton" onclick="addElementOrUpdate()">Update</button>-->
     <button type="button" id="generate" onclick="generate()">Generate</button>
     <button type="button" id="delete" onclick="deleteElement()">Delete</button>
+    <button type="button" id="copy" onclick="copyElement()">Copy</button>
     <br><br>
     <div id="variants"></div>
   </div>
