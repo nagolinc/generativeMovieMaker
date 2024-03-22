@@ -501,12 +501,34 @@ def upload_file():
     return jsonify({"error": "File upload failed"}), 500
 
 
+
+def getThumbnail(project_id):
+    project_json_string = db["savedata"].find_one(key=project_id)["data"]
+    project = json.loads(project_json_string)
+    elements = sorted(project['elements'].values(), key=lambda e: e['start'])
+    #find the first image
+    for element in elements:
+        if element['elementType'] == 'image':
+            return element['chosen']
+    return None
+
 #list projects
 @app.route("/listProjects", methods=["GET"])
 def list_projects():
     projects = db["savedata"].all()
     projects = [p["key"] for p in projects]
-    return jsonify({"projects": projects})
+    thumbnails = []
+    
+    
+    for project in projects:
+        thumbnail = getThumbnail(project)
+        if thumbnail:
+            thumbnails.append(thumbnail)
+        else:
+            thumbnails.append(None)
+    
+    
+    return jsonify({"projects": projects, "thumbnails": thumbnails})
 
 
 if __name__ == "__main__":
