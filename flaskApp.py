@@ -62,7 +62,8 @@ def generateVideo(project_id, width=512, height=512):
             duration = element_duration
     
     # Initialize a blank video frame array
-    video_frames = np.zeros((int(duration * 30), height, width, 3), dtype=np.uint8)  # Assuming 30 fps
+    final_output_fps=30
+    video_frames = np.zeros((int(duration * final_output_fps), height, width, 3), dtype=np.uint8)  # Assuming 30 fps
     
     audio = AudioClip(lambda t: 0, duration=duration)
     audio.fps = 44100
@@ -73,6 +74,7 @@ def generateVideo(project_id, width=512, height=512):
         if 'chosen' in element and element['chosen']:
             start_frame = int(element['start'] * 30)  # Assuming 30 fps
             end_frame = start_frame + int(element['duration'] * 30)
+        
             
             if element['elementType'] == 'image':
                 img = cv2.imread("." + element['chosen'])
@@ -80,31 +82,33 @@ def generateVideo(project_id, width=512, height=512):
                 for f in range(start_frame, min(end_frame, len(video_frames))):
                     video_frames[f] = img_resized
             
-            
-            #videos that lop
-            elif element['elementType'] in ['svd']:
-                vr = VideoReader("." + element['chosen'], ctx=cpu(0))
-                vr_length = len(vr)  # Total number of frames in the video
-                for f in range(start_frame, min(end_frame, len(video_frames))):
-                    # Use modulo to loop over vr frames if f exceeds vr_length
-                    frame_index = (f - start_frame) % vr_length
-                    frame = vr[frame_index].asnumpy()
-                    # Convert frame from RGB to BGR for OpenCV compatibility
-                    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                    frame_resized = cv2.resize(frame, (width, height))
-                    video_frames[f] = frame_resized
+    for element in elements:
+        if 'chosen' in element and element['chosen']:
+            elementType = element['elementType']
+            chosen = element['chosen']
+            start = element['start']
+            end = start + element['duration']
 
-                        
-            #videos that don't loop
-            elif element['elementType'] in ['talkingHeadVideo']:
-                vr = VideoReader("." + element['chosen'], ctx=cpu(0))
-                for i, f in enumerate(range(start_frame, min(end_frame, len(video_frames)))):
-                    if i < len(vr):
-                        frame = vr[i].asnumpy()
-                        # Convert frame from RGB to BGR
+            if elementType in ['svd', 'talkingHeadVideo']:
+                vr = VideoReader("." + chosen, ctx=cpu(0))
+                input_fps = vr.get_avg_fps()
+                frame_duration = 1 / input_fps
+                total_frames = len(vr)
+
+                for output_frame_index in range(int(start * final_output_fps), int(end * final_output_fps)):
+                    # Calculate the corresponding time in the video for the current frame
+                    current_time = (output_frame_index - int(start * final_output_fps)) / final_output_fps
+                    # Determine the source frame index, with looping for 'svd' type
+                    if elementType == 'svd':
+                        source_frame_index = int(current_time / frame_duration) % total_frames
+                    else:
+                        source_frame_index = min(int(current_time / frame_duration), total_frames - 1)
+
+                    if 0 <= source_frame_index < total_frames:
+                        frame = vr[source_frame_index].asnumpy()
                         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                         frame_resized = cv2.resize(frame, (width, height))
-                        video_frames[f] = frame_resized
+                        video_frames[output_frame_index] = frame_resized
 
             
             elif element['elementType'] in ['music', 'sound']:
@@ -465,6 +469,44 @@ def load_data():
         return jsonify({"data": row["data"]}), 200
     else:
         return jsonify({"error": "No data found for this key"}), 404
+
+
+from flask import Flask, request, jsonify
+from werkzeug.utils import secure_filename
+import os
+
+
+UPLOAD_FOLDER = 'static/uploads'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    # check if the post request has the file part
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+
+    file = request.files['file']
+    # if user does not select file, browser also
+    # submit an empty part without filename
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    if file:
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        return jsonify({"url": "/static/uploads/" + filename}), 200
+
+    return jsonify({"error": "File upload failed"}), 500
+
+
+#list projects
+@app.route("/listProjects", methods=["GET"])
+def list_projects():
+    projects = db["savedata"].all()
+    projects = [p["key"] for p in projects]
+    return jsonify({"projects": projects})
 
 
 if __name__ == "__main__":

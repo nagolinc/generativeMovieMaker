@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Project List</title>
+    <script>
+        window.onload = function() {
+            fetch('/listProjects')
+                .then(response => response.json())
+                .then(data => {
+                    let projects = data.projects;
+                    let projectList = document.getElementById('projectList');
+                    for (let project of projects) {
+                        let link = document.createElement('a');
+                        link.href = `example.html?projectId=${project}`;
+                        link.textContent = `Project ${project}`;
+                        projectList.appendChild(link);
+                        projectList.appendChild(document.createElement('br')); // Add a line break between links
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        };
+    </script>
+</head>
+<body>
+    <h1>Projects</h1>
+    <div id="projectList"></div>
+</body>
+</html>

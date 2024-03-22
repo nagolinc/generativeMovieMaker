@@ -831,7 +831,7 @@ def generate_tts(text, speaker="static/voices/femalevoice3.wav", savePath="stati
 
     # filename should look like {datetime}-{text}.wav
     # first replace any symbol that is not a-z or number with _
-    ftext = re.sub(r"[^a-z0-9]", "_", text.lower())
+    ftext = re.sub(r"[^a-z0-9]", "_", text.lower())[:50]
     filename = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}_{ftext}.wav"
     
     mp3filename = filename.replace('.wav', '.mp3')

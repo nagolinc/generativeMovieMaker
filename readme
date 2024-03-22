@@ -4,6 +4,7 @@ https://twitter.com/andrewb10687674/status/1770566521690992911
 
 you will need (that I know of)
 
+flask
 sadtalker (my fork) installed somewhere that's in your pythonpath
 https://github.com/nagolinc/SadTalker
 pytorch
@@ -25,3 +26,4 @@ todo:
 *copy node button [done]
 *some nice ux for inserting/deleting time
 *toggle timelines on and off with a checkbox at the top
+*create a project based off of a human-readable script

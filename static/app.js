@@ -3,6 +3,13 @@ let elementsData = {};
 let timelineDuration = 120; // 2 minutes
 
 
+//load projectId from url param if it exists
+const urlParams = new URLSearchParams(window.location.search);
+const projectId = urlParams.get('projectId');
+if (projectId) {
+  document.getElementById('projectId').value = projectId;
+}
+
 
 let types = ['talkingHeadVideo', 'svd', 'animDiff', 'image', 'music', 'speech']
 
@@ -41,13 +48,8 @@ function showForm(thisType, action, elementId, start, duration) {
     //set end = start+ duraation
     document.getElementById('end').value = elementData.start + elementData.duration;
 
-    //custom fields
-    //clear custom fields
-    const customFields = document.getElementById('customFields');
-    customFields.innerHTML = '';
-    if (thisType === 'speech') {
-      addVoicesDropdown(elementId);
-    }
+
+
 
 
   } else {
@@ -57,28 +59,88 @@ function showForm(thisType, action, elementId, start, duration) {
     document.getElementById('duration').value = duration;
     document.getElementById('elementId').value = '';
     document.getElementById('elementType').value = thisType;
-    const elementId = addElement(thisType);
+    elementId = addElement(thisType);
     const elementData = elementsData[elementId];
+
+    console.log("huH?", elementData, elementId, elementsData[elementId])
+
     document.getElementById('prompt').value = elementData.prompt;
     document.getElementById('start').value = elementData.start;
     document.getElementById('duration').value = elementData.duration;
     document.getElementById('elementId').value = elementId;
 
-
-    //custom fields
-    //clear custom fields
-    const customFields = document.getElementById('customFields');
-    customFields.innerHTML = '';
-    if (thisType === 'speech') {
-      addVoicesDropdown(elementId);
-    }
-
   }
+
+  //change accepty type for uploadFile
+  if (thisType === 'image') {
+    document.getElementById('uploadFile').accept = "image/*";
+  } else if (thisType === 'talkingHeadVideo' || thisType === 'svd' || thisType === 'animDiff') {
+    document.getElementById('uploadFile').accept = "video/*";
+  } else if (thisType === 'music') {
+    document.getElementById('uploadFile').accept = "audio/*";
+  } else if (thisType === 'speech') {
+    document.getElementById('uploadFile').accept = "audio/*";
+  }
+
+  //custom fields
+  //clear custom fields
+  const customFields = document.getElementById('customFields');
+  customFields.innerHTML = '';
+
+
+
+  if (thisType === 'speech') {
+    addVoicesDropdown(elementId);
+  }
+
 
   // Set the button text to "Add" or "Update"
   //document.getElementById('addElementButton').textContent = action;
 
   displayVariants()
+}
+
+//upload file in uploadFile to /upload endpoint
+function uploadFile() {
+
+  const projectId = document.getElementById('projectId').value;
+  const elementId = document.getElementById('elementId').value;
+  const fileInput = document.getElementById('uploadFile');
+  const file = fileInput.files[0];
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('elementId', elementId);
+  formData.append('projectId', projectId);
+
+  fetch('/upload', {
+    method: 'POST',
+    body: formData
+  })
+    .then(response => response.json())
+    .then(data => {
+      console.log(data);
+      const elementId = document.getElementById('elementId').value;
+
+      //make sure variants is defined
+      if (!elementsData[elementId].variants) {
+        elementsData[elementId].variants = [];
+      }
+
+      //add uploaded file to variants
+      elementsData[elementId].variants.push(data.url);
+
+      //elementsData[elementId].chosen = data.url;
+      displayVariants();
+      addChosenImage(elementId);
+
+      //save
+      doSave();
+
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+
 }
 
 
@@ -107,14 +169,22 @@ function addVoicesDropdown(elementId) {
       // If an elementId was provided, load the selected voice from elementData
       if (elementId !== undefined) {
         const elementData = elementsData[elementId];
+
+        console.log("huh2?", elementData, elementId, elementsData[elementId])
+
         if (elementData.voice) {
           select.value = elementData.voice;
-        }else{
+        } else {
           //set voice to first option
           select.value = voices[0];
           elementData.voice = voices[0];
         }
+
+
+        console.log("elementData.voice", elementsData[elementId].voice, "huh", elementData.voice)
       }
+
+
 
       // Add an event listener to the dropdown that updates elementData.voice
       // whenever the selected voice changes
@@ -278,6 +348,11 @@ function addElementOrUpdate() {
   const startTime = parseFloat(document.getElementById('start').value);
   const durationSeconds = parseFloat(document.getElementById('duration').value);
 
+  //update end
+  const end = parseFloat(startTime) + parseFloat(durationSeconds);
+  console.log("new end", end)
+  document.getElementById('end').value = end;
+
   const startPercent = startTime / timelineDuration * 100; // Convert start time to percent based on 2 minutes total
 
   const durationPercent = durationSeconds / timelineDuration * 100; // Convert duration to percent based on 2 minutes total
@@ -308,7 +383,6 @@ function addElementOrUpdate() {
     console.log("this should never happen")
   }
 
-  //
 
   // Hide the form after adding/updating
   //document.getElementById('elementForm').style.display = 'none';
@@ -317,6 +391,15 @@ function addElementOrUpdate() {
   doSave();
 
 }
+
+
+//upldate the end field
+const startTime = document.getElementById('start').value;
+const durationSeconds = document.getElementById('duration').value;
+const end = parseFloat(startTime) + parseFloat(durationSeconds);
+console.log("new end", end)
+document.getElementById('end').value = end;
+
 
 
 // Get references to the form fields
@@ -328,6 +411,18 @@ const durationField = document.getElementById('duration');
 promptField.addEventListener('change', updateElement);
 startField.addEventListener('change', updateElement);
 durationField.addEventListener('change', updateElement);
+
+
+//when end is changed, we need to first calculate the new duration and then call update element
+const endField = document.getElementById('end');
+endField.addEventListener('change', function () {
+  const start = parseFloat(document.getElementById('start').value);
+  const end = parseFloat(document.getElementById('end').value);
+  const newDuration = end - start;
+  document.getElementById('duration').value = newDuration;
+  updateElement();
+});
+
 
 function updateElement() {
   // Call your existing update function
@@ -458,6 +553,17 @@ function displayVariants() {
               // Get the element and adjust its width
               const element = document.getElementById(elementId);
               element.style.width = `${durationPercent}%`;
+
+              //we also need to update the form field
+              document.getElementById('duration').value = durationSeconds;
+
+              //and the end field
+              const start = parseFloat(document.getElementById('start').value);
+              const end = start + durationSeconds;
+              document.getElementById('end').value = end;
+
+
+
             } catch (error) {
               console.error(error);
             }
