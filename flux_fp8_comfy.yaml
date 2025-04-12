@@ -1,0 +1,21 @@
+workflow: flux_merged_workflow_api.json
+prompt:
+   - "69"
+   - inputs
+   - value
+seed:
+   - "31"
+   - inputs
+   - seed
+output:
+   - "66"
+   - inputs
+   - filename_prefix
+width:
+   - "42"
+   - inputs
+   - width
+height:
+   - "42"
+   - inputs
+   - height

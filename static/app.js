@@ -1,7 +1,7 @@
 let elementCounter = 0;
 let elementsData = {};
-let timelineDuration = 120; // 2 minutes
-
+let timelineDuration = 140; // 5 minutes
+let isResizing = false;
 
 //load projectId from url param if it exists
 const urlParams = new URLSearchParams(window.location.search);
@@ -49,6 +49,14 @@ function showForm(thisType, action, elementId, start, duration) {
     document.getElementById('end').value = elementData.start + elementData.duration;
 
 
+    //check if elementData has priority, else 0
+    if (elementData.priority) {
+      document.getElementById('priority').value = elementData.priority;
+    } else {
+      document.getElementById('priority').value = 0;
+    }
+
+
 
 
 
@@ -69,7 +77,17 @@ function showForm(thisType, action, elementId, start, duration) {
     document.getElementById('duration').value = elementData.duration;
     document.getElementById('elementId').value = elementId;
 
+    //check if elementData has priority, else 0
+    if (elementData.priority) {
+      document.getElementById('priority').value = elementData.priority;
+    } else {
+      document.getElementById('priority').value = 0;
+    }
+
+
   }
+
+
 
   //change accepty type for uploadFile
   if (thisType === 'image') {
@@ -223,9 +241,6 @@ function copyElement() {
   // Call addElementWithData
   addElementWithData(newElementData); // Assuming this function exists and adds the element with the given data
 
-
-
-
   // Call showForm with the correct info for the new element
   showForm(thisType, 'Update', newElementId, newElementData.start, newElementData.duration);
 
@@ -348,6 +363,10 @@ function addElementOrUpdate() {
   const startTime = parseFloat(document.getElementById('start').value);
   const durationSeconds = parseFloat(document.getElementById('duration').value);
 
+  //priority
+  const priority = document.getElementById('priority').value;
+
+
   //update end
   const end = parseFloat(startTime) + parseFloat(durationSeconds);
   console.log("new end", end)
@@ -369,6 +388,9 @@ function addElementOrUpdate() {
     elementsData[elementId].start = startTime;
     elementsData[elementId].duration = durationSeconds;
 
+    //priority
+    elementsData[elementId].priority = priority;
+
     //set inner text (prompt)
     element.innerText = prompt;
 
@@ -382,6 +404,8 @@ function addElementOrUpdate() {
   } else {
     console.log("this should never happen")
   }
+
+  console.log('priority', priority,elementsData[elementId].priority)
 
 
   // Hide the form after adding/updating
@@ -411,6 +435,9 @@ const durationField = document.getElementById('duration');
 promptField.addEventListener('change', updateElement);
 startField.addEventListener('change', updateElement);
 durationField.addEventListener('change', updateElement);
+//priority
+const priorityField = document.getElementById('priority');
+priorityField.addEventListener('change', updateElement);
 
 
 //when end is changed, we need to first calculate the new duration and then call update element

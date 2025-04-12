@@ -1,0 +1,13 @@
+workflow: svd_lcm_workflow_api.json
+seed:
+   - "90"
+   - inputs
+   - seed
+output:
+   - "26"
+   - inputs
+   - filename_prefix
+image:
+   - "23"
+   - inputs
+   - image

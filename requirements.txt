@@ -1,0 +1,18 @@
+pydub
+audiocraft
+git+https://git@github.com/facebookresearch/audiocraft#egg=audiocraft
+diffusers
+tomesd
+kornia
+#fix basicsr
+dataset
+decord
+accelerate
+flask
+einx
+opencv-python
+scikit-image
+facexlib
+yacs
+gfpgan
+moviepy

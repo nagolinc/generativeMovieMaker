@@ -28,7 +28,7 @@ import torch
 import tomesd
 import numpy as np
 import gc
-from ip_adapter import IPAdapterXL, IPAdapterPlus
+#from ip_adapter import IPAdapterXL, IPAdapterPlus
 from PIL import Image
 import uuid
 import os

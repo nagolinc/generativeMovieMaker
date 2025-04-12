@@ -1,5 +1,17 @@
 from flask import Flask, request, jsonify, redirect
-import generation_functions
+#import generation_functions
+
+
+
+from generate_music import generate_music #given a text description, returns a filename to a music file
+#example usage:
+#filename=generate_music(caption) #note that duration is in seconds
+from tts_spark import tts, makeSpeech 
+
+#tts(input_text,prompt_speech_path)
+#example usage:
+#filename=makeSpeech(caption, gender, voice_id)# note that gender must be "male" or "female" and voice_id must be an int
+
 import os
 
 from sadWrapper import sadTalker
@@ -485,39 +497,32 @@ def generate():
     if elementType == "image":
         with generate_image_lock:
             
-            if args.comfy:
                 
-                print("using comfy",prompt)
-                
-                image_url = generate_comfy(prompt, 
-                                           yaml_file=args.comfy_yaml_img,
-                                           width=args.image_sizes[0],
-                                           height=args.image_sizes[1])
-                
-                #prepend / to url
-                image_url = "/" + image_url
+            print("using comfy",prompt)
             
-            else:
+            image_url = generate_comfy(prompt, 
+                                        yaml_file=args.comfy_yaml_img,
+                                        width=args.image_sizes[0],
+                                        height=args.image_sizes[1])
             
-                image_url = generation_functions.generate_image_url(prompt,
-                                                                width=args.image_sizes[0],
-                                                                height=args.image_sizes[1]
-                                                                )
+            #prepend / to url
+            image_url = "/" + image_url
+            
+           
         return jsonify({"url": image_url})
     #music
     elif elementType == "music":
         with generate_image_lock:
-            music_url = generation_functions.generate_music(prompt, duration)
+            #music_url = generation_functions.generate_music(prompt, duration)
+            music_url = generate_music(prompt,save_path="./static/samples")
         return jsonify({"url": music_url})
     #tts
     elif elementType == "speech":
-        
         #get elementData[voice] if present
         voice = elementData.get("voice")
-        
-        
         with generate_image_lock:
-            tts_url = generation_functions.generate_tts(prompt,speaker="static/voices/"+voice)
+            #tts_url = generation_functions.generate_tts(prompt,speaker="static/voices/"+voice)
+            tts_url = tts(prompt,prompt_speech_path="static/voices/"+voice)
             #add / at beginning of url
             tts_url = "/" + tts_url
         return jsonify({"url": tts_url})
@@ -540,14 +545,13 @@ def generate():
             #resize image (I guess)
             image = image.resize((args.image_sizes[0], args.image_sizes[1]))
             #generate movie
-            if args.comfy:
-                svd_url = generate_comfy(image, yaml_file=args.comfy_yaml_svd,suffix=".mp4")
-            else:
-                svd_url = generation_functions.generate_video_svd(image)
+            #note svd doesn't take a prompt
+            svd_url = generate_comfy("",image=image, yaml_file=args.comfy_yaml_svd,suffix=".mp4")
             #prepend / to url
             svd_url = "/" + svd_url
         return jsonify({"url": svd_url})
     elif elementType=="talkingHeadVideo":
+        print("making talking head video")
         with generate_image_lock:
             time = elementData["start"]
             audioElement=getElement(projectId, time, "speech")
@@ -646,7 +650,8 @@ def getThumbnail(project_id):
     #find the first image
     for element in elements:
         if element['elementType'] == 'image':
-            return element['chosen']
+            if "chosen" in element and element['chosen']:
+                return element['chosen']
     return None
 
 #list projects
@@ -695,6 +700,9 @@ if __name__ == "__main__":
     # --comfy_yaml_svd default="svd_comfy.yaml"
     parser.add_argument("--comfy_yaml_svd", default="svd_comfy.yaml", help="The yaml file to use for comfy mode.")
     
+    #--global (store true)
+    parser.add_argument("--global", dest="is_global", action="store_true", help="Enable global mode.")
+    
     # Parse the arguments
     args = parser.parse_args()
     
@@ -714,10 +722,14 @@ if __name__ == "__main__":
     print(args.image_sizes)
     
     
-    generation_functions.setup(
-        need_txt2img=need_txt2img,
-        need_music=need_music,
-        need_tts=need_tts,
-        need_svd=need_svd
-    )
-    app.run(debug=True, use_reloader=False)
+    #generation_functions.setup(
+    #    need_txt2img=need_txt2img,
+    #    need_music=need_music,
+    #    need_tts=need_tts,
+    #    need_svd=need_svd
+    #)
+    
+    if args.is_global:
+        app.run(host="0.0.0.0", debug=True, use_reloader=False)
+    else:
+        app.run(debug=True, use_reloader=False)

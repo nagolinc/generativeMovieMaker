@@ -34,6 +34,7 @@
       border: 1px solid #ffffff;
       /* Add this line */
       box-sizing: border-box;
+      overflow: hidden;
     }
 
     .time-marker {
@@ -154,6 +155,11 @@
     <div>
       <label for="end">End:</label>
       <input type="text" id="end" name="end">
+    </div>
+    <!--priority-->
+    <div>
+      <label for="priority">Priority:</label>
+      <input type="number" id="priority" name="priority" required min="0" step="1">
     </div>
     <div>
       <label for="image">Upload:</label>
